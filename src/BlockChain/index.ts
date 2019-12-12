@@ -1,23 +1,26 @@
-const Block = require("./Block");
-const Transaction = require("./Transaction");
+import Block from "../Block";
+import Transaction from "../Transaction";
 
-class BlockChain {
+// interface
+import { BlockChainInterface } from "./interface";
+
+class BlockChain implements BlockChainInterface {
+  private difficulty = 2;
+  private chain;
+  private pendingTransactions;
+  private miningReward;
+
   constructor() {
-    this.difficulty = 2;
     this.chain = [this.createGenisisBlock()];
     this.pendingTransactions = [];
     this.miningReward = 10;
   }
 
-  createGenisisBlock() {
-    return new Block(new Date().toUTCString(), "Genesis Block", "");
-  }
-
-  getLatestBlock() {
+  public getLatestBlock() {
     return this.chain[this.chain.length - 1];
   }
 
-  addTransaction(transaction) {
+  public addTransaction(transaction) {
     if (
       transaction.type === "sending" &&
       (!transaction.sender || !transaction.recipient)
@@ -29,9 +32,9 @@ class BlockChain {
     this.pendingTransactions.push(transaction);
   }
 
-  getKey(user, password) {
-    for (let block of this.chain) {
-      for (let transaction of block.transactions) {
+  public getKey(user, password) {
+    for (const block of this.chain) {
+      for (const transaction of block.transactions) {
         if (transaction.type === "create") {
           if (
             transaction.data.user === user &&
@@ -45,10 +48,14 @@ class BlockChain {
     throw new Error("email or password is incorrect");
   }
 
-  getBalance(address) {
+  public getChain() {
+    return this.chain;
+  }
+
+  public getBalance(address) {
     let balance = 0;
-    for (let block of this.chain) {
-      for (let transaction of block.transactions) {
+    for (const block of this.chain) {
+      for (const transaction of block.transactions) {
         if (transaction.type === "deposit" || transaction.type === "mine") {
           balance +=
             transaction.recipient === address
@@ -62,8 +69,8 @@ class BlockChain {
     return balance;
   }
 
-  minePendingTransactions(minerRewardAddress) {
-    let newBlock = new Block(
+  public minePendingTransactions(minerRewardAddress) {
+    const newBlock = new Block(
       new Date().toUTCString(),
       this.pendingTransactions,
       this.getLatestBlock().hash
@@ -72,23 +79,41 @@ class BlockChain {
     this.chain.push(newBlock);
     this.pendingTransactions = [
       new Transaction({
-        type: "mine",
+        amount: this.miningReward,
         recipient: minerRewardAddress,
-        amount: this.miningReward
+        type: "mine"
       })
     ];
   }
 
-  isBlockChainVailid() {
+  public isBlockChainVailid() {
     for (let index = 1; index < this.chain.length; index++) {
-      let currentBlock = this.chain[index];
-      let previousBlock = this.chain[index - 1];
-      if (!currentBlock.hasValidTransactions()) return false;
-      if (currentBlock.calculateHash() !== currentBlock.hash) return false;
-      if (currentBlock.previousHash !== previousBlock.hash) return false;
+      const currentBlock = this.chain[index];
+      const previousBlock = this.chain[index - 1];
+      if (!currentBlock.hasValidTransactions()) {
+        return false;
+      }
+      if (currentBlock.calculateHash() !== currentBlock.hash) {
+        return false;
+      }
+      if (currentBlock.previousHash !== previousBlock.hash) {
+        return false;
+      }
     }
     return true;
   }
+
+  private createGenisisBlock() {
+    return new Block(
+      new Date().toUTCString(),
+      [
+        new Transaction({
+          type: "genesis"
+        })
+      ],
+      ""
+    );
+  }
 }
 
-module.exports = BlockChain;
+export default BlockChain;
