@@ -19,14 +19,19 @@ class Block {
   }
 
   mineBlock(difficulty) {
-    console.log("minning block...");
     while (
       this.hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")
     ) {
       this.nonce++;
       this.hash = this.calculateHash();
     }
-    console.log("block mined.");
+  }
+
+  hasValidTransactions() {
+    for (const tx of this.transactions) {
+      if (!tx.isValid()) return false;
+    }
+    return true;
   }
 }
 
