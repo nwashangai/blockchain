@@ -1,9 +1,10 @@
-const express = require("express");
-const logger = require("morgan");
-const BlockChain = require("./BlockChain");
-const Elliptic = require("elliptic").ec;
-const ec = new Elliptic("secp256k1");
-const Transaction = require("./Transaction");
+import Elliptic from "elliptic";
+import express from "express";
+import logger from "morgan";
+import BlockChain from "./BlockChain";
+import Transaction from "./Transaction";
+
+const ec = new Elliptic.ec("secp256k1");
 
 const app = express();
 
@@ -25,23 +26,23 @@ app.listen(3032, () => {
   const key1 = ec.genKeyPair();
   bisCoin.addTransaction(
     new Transaction({
-      type: "create",
+      data: { user: "nwashangai@gmail.com", password: "123456" },
       key: {
         private: key1.getPrivate("hex"),
         public: key1.getPublic("hex")
       },
-      data: { user: "nwashangai@gmail.com", password: "123456" }
+      type: "create"
     })
   );
   const key2 = ec.genKeyPair();
   bisCoin.addTransaction(
     new Transaction({
-      type: "create",
+      data: { user: "john@gmail.com", password: "123456" },
       key: {
         private: key2.getPrivate("hex"),
         public: key2.getPublic("hex")
       },
-      data: { user: "john@gmail.com", password: "123456" }
+      type: "create"
     })
   );
 
@@ -52,10 +53,10 @@ app.listen(3032, () => {
 
   const signature = ec.keyFromPrivate(sender.private);
   const tx1 = new Transaction({
-    type: "deposit",
-    sender: sender.public,
+    amount: 10,
     recipient: receiver.public,
-    amount: 10
+    sender: sender.public,
+    type: "deposit"
   });
   tx1.signTransaction(signature);
   bisCoin.addTransaction(tx1);
@@ -64,7 +65,7 @@ app.listen(3032, () => {
   console.log("my balance is ", bisCoin.getBalance(receiver.public));
   bisCoin.minePendingTransactions("***");
 
-  console.log("my new balance is ", bisCoin.getBalance("***"));
+  console.log("is Block Valid ?", bisCoin.isBlockChainVailid());
 
-  console.log(JSON.stringify(bisCoin.chain, null, 4));
+  console.log(JSON.stringify(bisCoin.getChain(), null, 4));
 });

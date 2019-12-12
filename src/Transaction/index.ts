@@ -1,8 +1,19 @@
-const SHA256 = require("crypto-js/sha256");
-const Elliptic = require("elliptic").ec;
-const ec = new Elliptic("secp256k1");
+import SHA256 from "crypto-js/sha256";
+import Elliptic from "elliptic";
+const ec = new Elliptic.ec("secp256k1");
 
-class Transaction {
+// interface
+import { construct, TransactionInterface } from "./interface";
+
+class Transaction implements TransactionInterface {
+  private type;
+  private sender = null;
+  private recipient = null;
+  private amount = null;
+  private key = null;
+  private data = null;
+  private signature;
+
   constructor({
     type,
     sender = null,
@@ -10,7 +21,7 @@ class Transaction {
     amount = null,
     key = null,
     data = null
-  }) {
+  }: construct) {
     (this.type = type),
       (this.data = data),
       (this.amount = amount),
@@ -19,7 +30,7 @@ class Transaction {
       (this.sender = sender);
   }
 
-  calculateHash() {
+  public calculateHash() {
     return SHA256(
       this.type +
         this.sender +
@@ -30,7 +41,7 @@ class Transaction {
     ).toString();
   }
 
-  signTransaction(signingKey) {
+  public signTransaction(signingKey) {
     if (signingKey.getPublic("hex") !== this.sender) {
       throw new Error("You cannot sign transction that doesn't belong to you");
     }
@@ -40,12 +51,13 @@ class Transaction {
     this.signature = sign.toDER("hex");
   }
 
-  isValid() {
+  public isValid() {
     if (
       (this.type === "mine" && this.sender === null) ||
       this.type === "create"
-    )
+    ) {
       return true;
+    }
 
     if (!this.signature || this.signature.length === 0) {
       throw new Error("No signature to this transaction");
@@ -56,4 +68,4 @@ class Transaction {
   }
 }
 
-module.exports = Transaction;
+export default Transaction;
