@@ -1,7 +1,8 @@
 const express = require("express");
 const logger = require("morgan");
 const BlockChain = require("./BlockChain");
-const Block = require("./Block");
+const Elliptic = require("elliptic").ec;
+const ec = new Elliptic("secp256k1");
 const Transaction = require("./Transaction");
 
 const app = express();
@@ -21,20 +22,49 @@ app.get("/", (req, res) => {
 app.listen(3032, () => {
   const bisCoin = new BlockChain();
 
-  bisCoin.createTransaction(new Transaction("xxx", "xxxx", 3));
-  bisCoin.createTransaction(new Transaction("xxx1", "xxxx1", 1));
-  bisCoin.createTransaction(new Transaction("xxx2", "xxxx2", 4));
+  const key1 = ec.genKeyPair();
+  bisCoin.addTransaction(
+    new Transaction({
+      type: "create",
+      key: {
+        private: key1.getPrivate("hex"),
+        public: key1.getPublic("hex")
+      },
+      data: { user: "nwashangai@gmail.com", password: "123456" }
+    })
+  );
+  const key2 = ec.genKeyPair();
+  bisCoin.addTransaction(
+    new Transaction({
+      type: "create",
+      key: {
+        private: key2.getPrivate("hex"),
+        public: key2.getPublic("hex")
+      },
+      data: { user: "john@gmail.com", password: "123456" }
+    })
+  );
 
-  console.log("Starting mining..");
-  bisCoin.minePendingTransactions("xvd");
-  console.log("my balance is ", bisCoin.getBalance("xvd"));
-  bisCoin.minePendingTransactions("xvd");
+  bisCoin.minePendingTransactions("***");
 
-  console.log("my new balance is ", bisCoin.getBalance("xvd"));
-  // console.log("isChain valid?", bisCoin.isBlockChainVailid());
-  // bisCoin.chain[2].payload.amount = 7;
-  // bisCoin.chain[2].calculateHash();
-  // console.log(bisCoin.isBlockChainVailid());
+  const sender = bisCoin.getKey("nwashangai@gmail.com", "123456");
+  const receiver = bisCoin.getKey("john@gmail.com", "123456");
 
-  // console.log(JSON.stringify(bisCoin, null, 4));
+  const signature = ec.keyFromPrivate(sender.private);
+  const tx1 = new Transaction({
+    type: "deposit",
+    sender: sender.public,
+    recipient: receiver.public,
+    amount: 10
+  });
+  tx1.signTransaction(signature);
+  bisCoin.addTransaction(tx1);
+
+  bisCoin.minePendingTransactions("***");
+  console.log("my balance is ", bisCoin.getBalance(receiver.public));
+  bisCoin.minePendingTransactions("***");
+
+  console.log("my new balance is ", bisCoin.getBalance("***"));
+
+  console.log(JSON.stringify(bisCoin.chain, null, 4));
 });
