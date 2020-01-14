@@ -6,38 +6,27 @@ const ec = new Elliptic.ec("secp256k1");
 import { construct, TransactionInterface } from "./interface";
 
 class Transaction implements TransactionInterface {
-  private type;
   private sender = null;
   private recipient = null;
-  private amount = null;
-  private key = null;
   private data = null;
   private signature;
+  private amount;
 
   constructor({
-    type,
     sender = null,
     recipient = null,
-    amount = null,
-    key = null,
+    amount = 0,
     data = null
   }: construct) {
-    (this.type = type),
-      (this.data = data),
+    (this.data = data),
       (this.amount = amount),
       (this.recipient = recipient),
-      (this.key = key),
       (this.sender = sender);
   }
 
   public calculateHash() {
     return SHA256(
-      this.type +
-        this.sender +
-        this.recipient +
-        this.amount +
-        this.key +
-        this.data
+      this.sender + this.recipient + this.amount + this.data
     ).toString();
   }
 
@@ -52,10 +41,7 @@ class Transaction implements TransactionInterface {
   }
 
   public isValid() {
-    if (
-      (this.type === "mine" && this.sender === null) ||
-      this.type === "create"
-    ) {
+    if (!this.sender) {
       return true;
     }
 

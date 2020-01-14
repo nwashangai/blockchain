@@ -6,7 +6,7 @@ import { BlockInterface } from "./interface";
 
 class Block implements BlockInterface {
   private timestamp;
-  private nonce;
+  private proofOfWork;
   private previousHash;
   private hash;
   private transactions;
@@ -18,7 +18,7 @@ class Block implements BlockInterface {
   ) {
     (this.timestamp = timestamp),
       (this.transactions = transactions),
-      (this.nonce = 0),
+      (this.proofOfWork = 0),
       (this.previousHash = previousHash),
       (this.hash = this.calculateHash());
   }
@@ -27,7 +27,7 @@ class Block implements BlockInterface {
     while (
       this.hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")
     ) {
-      this.nonce++;
+      this.proofOfWork++;
       this.hash = this.calculateHash();
     }
   }
@@ -45,7 +45,7 @@ class Block implements BlockInterface {
     return SHA256(
       this.timestamp +
         this.previousHash +
-        this.nonce +
+        this.proofOfWork +
         JSON.stringify(this.transactions)
     ).toString();
   }

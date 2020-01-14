@@ -10,10 +10,8 @@ export interface TransactionInterface {
 }
 
 export interface construct {
-  type: string;
   sender?: string;
   recipient?: string;
   amount?: number;
-  key?: key;
   data?: object;
 }
