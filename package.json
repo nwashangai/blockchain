@@ -5,6 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "tsc && node dist/main.js",
+    "start-dev": "./node_modules/.bin/nodemon src/main.ts http://localhost:$PORT",
     "test": "mocha"
   },
   "keywords": [
@@ -14,13 +15,19 @@
   "license": "ISC",
   "dependencies": {
     "@types/express": "^4.17.2",
+    "axios": "^0.19.0",
     "crypto-js": "^3.1.9-1",
+    "dotenv": "^8.2.0",
     "elliptic": "^6.5.2",
     "express": "^4.17.1",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.5",
     "uniqid": "^5.2.0"
   },
   "devDependencies": {
     "morgan": "^1.9.1",
+    "nodemon": "^2.0.2",
+    "ts-node": "^8.5.4",
     "tslint": "^5.20.1",
     "typescript": "^3.7.3"
   }

@@ -1,10 +1,12 @@
-import Elliptic from "elliptic";
+import dotenv from "dotenv";
 import express from "express";
 import logger from "morgan";
+import request from "request-promise";
 import BlockChain from "./BlockChain";
+import auth from "./helpers/auth";
 import Transaction from "./Transaction";
 
-const ec = new Elliptic.ec("secp256k1");
+dotenv.config();
 
 const app = express();
 
@@ -16,56 +18,108 @@ app.use(
   })
 );
 
+const teraCoin = new BlockChain(process.argv[2]);
+
 app.get("/", (req, res) => {
-  res.send("Blockchain technology");
+  res.send("Blockchain technology (TeraCoin)");
 });
 
-app.listen(3032, () => {
-  const bisCoin = new BlockChain();
+app.get("/blockchain", (req, res) => {
+  res.status(200).json(teraCoin.getChain());
+});
 
-  const key1 = ec.genKeyPair();
-  bisCoin.addTransaction(
-    new Transaction({
-      data: { user: "nwashangai@gmail.com", password: "123456" },
-      key: {
-        private: key1.getPrivate("hex"),
-        public: key1.getPublic("hex")
-      },
-      type: "create"
-    })
-  );
-  const key2 = ec.genKeyPair();
-  bisCoin.addTransaction(
-    new Transaction({
-      data: { user: "john@gmail.com", password: "123456" },
-      key: {
-        private: key2.getPrivate("hex"),
-        public: key2.getPublic("hex")
-      },
-      type: "create"
-    })
-  );
+app.post("/register-and-broadcast-node", (req, res) => {
+  try {
+    const { nodeUrl } = req.body;
+    const promises = [];
+    teraCoin.registerNode(nodeUrl);
+    teraCoin.getActiveNodeList().forEach(url => {
+      const requestOption = {
+        body: { nodeUrl },
+        method: "POST",
+        uri: `${url}/register-node`
+      };
+      promises.push(request(requestOption));
+    });
+    Promise.all(promises)
+      .then(_ => {
+        const bulkRegisterOption = {
+          body: { allNetworkNodes: teraCoin.getActiveNodeList() },
+          method: "POST",
+          uri: `${nodeUrl}/register-node-bulk`
+        };
+        return request(bulkRegisterOption);
+      })
+      .then(_ => {
+        res.status(200).send("new nodes registered successfully");
+      });
+  } catch (error) {
+    res.status(401).send({
+      message: error.message,
+      status: "error"
+    });
+  }
+});
 
-  bisCoin.minePendingTransactions("***");
+app.post("/register-node", (req, res) => {
+  try {
+    teraCoin.registerNode(req.body.nodeUrl);
+    res.status(200).send("successful");
+  } catch (error) {
+    res.status(401).send({
+      message: error.message,
+      status: "error"
+    });
+  }
+});
 
-  const sender = bisCoin.getKey("nwashangai@gmail.com", "123456");
-  const receiver = bisCoin.getKey("john@gmail.com", "123456");
+app.get("/transactions/:address", (req, res) => {
+  const transactions = teraCoin.getTransactions(req.params.address);
+  res.status(200).json({ data: transactions });
+});
 
-  const signature = ec.keyFromPrivate(sender.private);
-  const tx1 = new Transaction({
-    amount: 10,
-    recipient: receiver.public,
-    sender: sender.public,
-    type: "deposit"
-  });
-  tx1.signTransaction(signature);
-  bisCoin.addTransaction(tx1);
+app.get("/mine", (req, res) => {
+  try {
+    teraCoin.minePendingTransactions(process.env.MINER_ADDRESS);
+    res.status(200).json({ message: "mine successfull" });
+  } catch (error) {
+    res.status(401).send({
+      message: "Please make sure to provide an address",
+      status: "error"
+    });
+  }
+});
 
-  bisCoin.minePendingTransactions("***");
-  console.log("my balance is ", bisCoin.getBalance(receiver.public));
-  bisCoin.minePendingTransactions("***");
+app.use(auth).post("/transaction", (req, res) => {
+  try {
+    const { sender, recipient, data, amount, signature } = req.body;
+    const balance = teraCoin.getBalance(sender);
+    if (balance < (amount || 0)) {
+      throw new Error("you don't have enough coin to make this transaction");
+    }
+    const transaction = new Transaction({ sender, recipient, amount, data });
+    transaction.signTransaction(signature);
+    teraCoin.addTransaction(transaction);
+    res.status(200).json(transaction);
+  } catch (error) {
+    res.status(401).send({ status: "error", message: error.message });
+  }
+});
 
-  console.log("is Block Valid ?", bisCoin.isBlockChainVailid());
+app.get("/balance", (req, res) => {
+  try {
+    const { signature } = req.body;
+    const balance = teraCoin.getBalance(signature.getPublic("hex"));
+    res.status(200).json({ balance });
+  } catch (error) {
+    res.status(401).send({
+      message: error.message,
+      status: "error"
+    });
+  }
+});
 
-  console.log(JSON.stringify(bisCoin.getChain(), null, 4));
+app.listen(process.env.PORT || 3032, () => {
+  console.log(process.argv[2]);
+  console.log(`Blockchain running on port ${process.env.PORT || 3032}...`);
 });

@@ -7,13 +7,17 @@ import { BlockChainInterface } from "./interface";
 class BlockChain implements BlockChainInterface {
   private difficulty = 2;
   private chain;
+  private nodeUrl;
+  private activeNodeList;
   private pendingTransactions;
   private miningReward;
 
-  constructor() {
+  constructor(nodeUrl: string, activeNodeList = []) {
     this.chain = [this.createGenisisBlock()];
     this.pendingTransactions = [];
     this.miningReward = 10;
+    this.nodeUrl = nodeUrl;
+    this.activeNodeList = activeNodeList;
   }
 
   public getLatestBlock() {
@@ -52,21 +56,45 @@ class BlockChain implements BlockChainInterface {
     return this.chain;
   }
 
+  public getActiveNodeList() {
+    return this.activeNodeList;
+  }
+
+  public registerNode(nodeUrl) {
+    if (this.activeNodeList.indexOf(nodeUrl) !== -1) {
+      throw new Error("the url already exist in the node list");
+    }
+    this.activeNodeList.push(nodeUrl);
+  }
+
   public getBalance(address) {
     let balance = 0;
     for (const block of this.chain) {
       for (const transaction of block.transactions) {
-        if (transaction.type === "deposit" || transaction.type === "mine") {
-          balance +=
-            transaction.recipient === address
-              ? transaction.amount
-              : transaction.sender === address
-              ? -transaction.amount
-              : balance;
-        }
+        balance +=
+          transaction.recipient === address
+            ? transaction.amount
+            : transaction.sender === address
+            ? -transaction.amount
+            : balance;
       }
     }
     return balance;
+  }
+
+  public getTransactions(address) {
+    const transactions = [];
+    for (const block of this.chain) {
+      for (const transaction of block.transactions) {
+        if (
+          transaction.sender === address ||
+          transaction.recipient === address
+        ) {
+          transactions.push(transaction);
+        }
+      }
+    }
+    return transactions;
   }
 
   public minePendingTransactions(minerRewardAddress) {
@@ -80,8 +108,7 @@ class BlockChain implements BlockChainInterface {
     this.pendingTransactions = [
       new Transaction({
         amount: this.miningReward,
-        recipient: minerRewardAddress,
-        type: "mine"
+        recipient: minerRewardAddress
       })
     ];
   }
@@ -104,15 +131,7 @@ class BlockChain implements BlockChainInterface {
   }
 
   private createGenisisBlock() {
-    return new Block(
-      new Date().toUTCString(),
-      [
-        new Transaction({
-          type: "genesis"
-        })
-      ],
-      ""
-    );
+    return new Block(new Date().toUTCString(), [new Transaction({})], "");
   }
 }
 
