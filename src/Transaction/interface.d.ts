@@ -5,6 +5,8 @@ export interface key {
 
 export interface TransactionInterface {
   calculateHash: () => string;
+  getSender: () => string;
+  getRecipient: () => string;
   signTransaction: (difficulty: object) => void;
   isValid: () => boolean;
 }
@@ -13,5 +15,6 @@ export interface construct {
   sender?: string;
   recipient?: string;
   amount?: number;
-  data?: object;
+  payload?: object;
+  signature?: string;
 }
