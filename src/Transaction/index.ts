@@ -8,7 +8,7 @@ import { construct, TransactionInterface } from "./interface";
 class Transaction implements TransactionInterface {
   private sender = null;
   private recipient = null;
-  private data = null;
+  private payload = {};
   private signature;
   private amount;
 
@@ -16,17 +16,19 @@ class Transaction implements TransactionInterface {
     sender = null,
     recipient = null,
     amount = 0,
-    data = null
+    payload = {},
+    signature
   }: construct) {
-    (this.data = data),
+    (this.payload = payload),
       (this.amount = amount),
       (this.recipient = recipient),
-      (this.sender = sender);
+      (this.sender = sender),
+      (this.signature = signature);
   }
 
   public calculateHash() {
     return SHA256(
-      this.sender + this.recipient + this.amount + this.data
+      this.sender + this.recipient + this.amount + this.payload
     ).toString();
   }
 
@@ -38,6 +40,14 @@ class Transaction implements TransactionInterface {
     const hashTX = this.calculateHash();
     const sign = signingKey.sign(hashTX, "base64");
     this.signature = sign.toDER("hex");
+  }
+
+  public getSender() {
+    return this.sender;
+  }
+
+  public getRecipient() {
+    return this.recipient;
   }
 
   public isValid() {

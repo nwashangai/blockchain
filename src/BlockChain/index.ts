@@ -24,40 +24,47 @@ class BlockChain implements BlockChainInterface {
     return this.chain[this.chain.length - 1];
   }
 
-  public addTransaction(transaction) {
-    if (
-      transaction.type === "sending" &&
-      (!transaction.sender || !transaction.recipient)
-    ) {
-      throw new Error("Block must include from and to address");
-    } else if (!transaction.isValid()) {
-      throw new Error("Cannot add invalid block to chain");
+  public verifyTransaction(transaction) {
+    if (!transaction.getSender || !transaction.getRecipient) {
+      return false;
     }
-    this.pendingTransactions.push(transaction);
+    if (!transaction.isValid()) {
+      return false;
+    }
+    return true;
   }
 
-  public getKey(user, password) {
-    for (const block of this.chain) {
-      for (const transaction of block.transactions) {
-        if (transaction.type === "create") {
-          if (
-            transaction.data.user === user &&
-            transaction.data.password === password
-          ) {
-            return transaction.key;
-          }
-        }
-      }
+  public addTransaction(transaction) {
+    if (this.verifyTransaction(transaction)) {
+      this.pendingTransactions.push(transaction);
+    } else {
+      throw new Error("Blocks must be valid with from and to addresses");
     }
-    throw new Error("email or password is incorrect");
   }
 
   public getChain() {
-    return this.chain;
+    return {
+      chain: this.chain,
+      currentUrl: this.nodeUrl,
+      networkNodes: Array.from(new Set([this.nodeUrl, ...this.activeNodeList])),
+      pendingTransactions: this.pendingTransactions
+    };
   }
 
   public getActiveNodeList() {
-    return this.activeNodeList;
+    return [...this.activeNodeList];
+  }
+
+  public getCurrentNodeURL() {
+    return this.nodeUrl;
+  }
+
+  public setActiveNodeList(activeNodeList) {
+    activeNodeList.forEach(url => {
+      if (this.activeNodeList.indexOf(url) === -1) {
+        this.activeNodeList.push(url);
+      }
+    });
   }
 
   public registerNode(nodeUrl) {
@@ -113,10 +120,10 @@ class BlockChain implements BlockChainInterface {
     ];
   }
 
-  public isBlockChainVailid() {
-    for (let index = 1; index < this.chain.length; index++) {
-      const currentBlock = this.chain[index];
-      const previousBlock = this.chain[index - 1];
+  public isBlockChainVailid(chain) {
+    for (let index = 1; index < chain.length; index++) {
+      const currentBlock = chain[index];
+      const previousBlock = chain[index - 1];
       if (!currentBlock.hasValidTransactions()) {
         return false;
       }
@@ -128,6 +135,27 @@ class BlockChain implements BlockChainInterface {
       }
     }
     return true;
+  }
+
+  public replaceBlockWithLatest(chain, pendingTransactions) {
+    if (
+      this.isBlockChainVailid(chain) &&
+      this.verifyBulkTransations(pendingTransactions)
+    ) {
+      [this.chain, this.pendingTransactions] = [chain, pendingTransactions];
+    } else {
+      throw Error("Blockchain is invalid");
+    }
+  }
+
+  private verifyBulkTransations(transactions) {
+    let isValid = true;
+    transactions.forEach(transaction => {
+      if (!this.verifyTransaction(new Transaction(transaction))) {
+        isValid = !isValid;
+      }
+    });
+    return isValid;
   }
 
   private createGenisisBlock() {

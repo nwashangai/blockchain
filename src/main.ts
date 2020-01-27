@@ -28,6 +28,25 @@ app.get("/blockchain", (req, res) => {
   res.status(200).json(teraCoin.getChain());
 });
 
+app.post("/register-node-bulk", (req, res) => {
+  try {
+    const { blockchain } = req.body;
+    if (blockchain.networkNodes) {
+      teraCoin.setActiveNodeList(blockchain.networkNodes);
+      teraCoin.replaceBlockWithLatest(
+        blockchain.chain,
+        blockchain.pendingTransactions
+      );
+    }
+    res.status(200).send("bulk nodes registered successfully");
+  } catch (error) {
+    res.status(401).send({
+      message: error.message,
+      status: "error"
+    });
+  }
+});
+
 app.post("/register-and-broadcast-node", (req, res) => {
   try {
     const { nodeUrl } = req.body;
@@ -36,6 +55,7 @@ app.post("/register-and-broadcast-node", (req, res) => {
     teraCoin.getActiveNodeList().forEach(url => {
       const requestOption = {
         body: { nodeUrl },
+        json: true,
         method: "POST",
         uri: `${url}/register-node`
       };
@@ -44,7 +64,10 @@ app.post("/register-and-broadcast-node", (req, res) => {
     Promise.all(promises)
       .then(_ => {
         const bulkRegisterOption = {
-          body: { allNetworkNodes: teraCoin.getActiveNodeList() },
+          body: {
+            blockchain: teraCoin.getChain()
+          },
+          json: true,
           method: "POST",
           uri: `${nodeUrl}/register-node-bulk`
         };
@@ -52,7 +75,13 @@ app.post("/register-and-broadcast-node", (req, res) => {
       })
       .then(_ => {
         res.status(200).send("new nodes registered successfully");
-      });
+      })
+      .catch(error =>
+        res.status(500).send({
+          message: error.message,
+          status: "error"
+        })
+      );
   } catch (error) {
     res.status(401).send({
       message: error.message,
@@ -63,7 +92,9 @@ app.post("/register-and-broadcast-node", (req, res) => {
 
 app.post("/register-node", (req, res) => {
   try {
-    teraCoin.registerNode(req.body.nodeUrl);
+    if (req.body.nodeUrl) {
+      teraCoin.registerNode(req.body.nodeUrl);
+    }
     res.status(200).send("successful");
   } catch (error) {
     res.status(401).send({
@@ -90,23 +121,54 @@ app.get("/mine", (req, res) => {
   }
 });
 
-app.use(auth).post("/transaction", (req, res) => {
+app.post("/transaction", auth, (req, res) => {
   try {
-    const { sender, recipient, data, amount, signature } = req.body;
+    const { sender, recipient, payload, amount, signature } = req.body;
     const balance = teraCoin.getBalance(sender);
+    const promises = [];
     if (balance < (amount || 0)) {
       throw new Error("you don't have enough coin to make this transaction");
     }
-    const transaction = new Transaction({ sender, recipient, amount, data });
+    const transaction = new Transaction({ sender, recipient, amount, payload });
     transaction.signTransaction(signature);
     teraCoin.addTransaction(transaction);
-    res.status(200).json(transaction);
+    teraCoin.getActiveNodeList().forEach(url => {
+      if (url !== teraCoin.getCurrentNodeURL) {
+        const requestOption = {
+          body: { transaction },
+          json: true,
+          method: "POST",
+          uri: `${url}/broadcast-transaction`
+        };
+        promises.push(request(requestOption));
+      }
+    });
+    Promise.all(promises)
+      .then(_ => {
+        res.status(200).json(transaction);
+      })
+      .catch(error =>
+        res.status(500).send({
+          message: error.message,
+          status: "error2"
+        })
+      );
   } catch (error) {
-    res.status(401).send({ status: "error", message: error.message });
+    res.status(401).send({ status: "error1", message: error.message });
   }
 });
 
-app.get("/balance", (req, res) => {
+app.post("/broadcast-transaction", (req, res) => {
+  try {
+    const { transaction } = req.body;
+    teraCoin.addTransaction(new Transaction(transaction));
+    res.status(200).json({ message: "successful" });
+  } catch (error) {
+    res.status(500).send({ status: "error", message: error.message });
+  }
+});
+
+app.get("/balance", auth, (req, res) => {
   try {
     const { signature } = req.body;
     const balance = teraCoin.getBalance(signature.getPublic("hex"));
