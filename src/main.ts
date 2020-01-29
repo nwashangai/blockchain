@@ -111,11 +111,37 @@ app.get("/transactions/:address", (req, res) => {
 
 app.get("/mine", (req, res) => {
   try {
-    teraCoin.minePendingTransactions(process.env.MINER_ADDRESS);
-    res.status(200).json({ message: "mine successfull" });
+    const promises = [];
+    const blockChain = teraCoin.minePendingTransactions(
+      process.env.MINER_ADDRESS
+    );
+    teraCoin.getActiveNodeList().forEach(url => {
+      if (url !== teraCoin.getCurrentNodeURL) {
+        const requestOption = {
+          body: {
+            block: blockChain.newBlock,
+            transaction: blockChain.transaction
+          },
+          json: true,
+          method: "POST",
+          uri: `${url}/broadcast-transaction`
+        };
+        promises.push(request(requestOption));
+      }
+    });
+    Promise.all(promises)
+      .then(_ => {
+        res.status(200).json({ message: "mine successfull" });
+      })
+      .catch(error =>
+        res.status(500).send({
+          message: error.message,
+          status: "error"
+        })
+      );
   } catch (error) {
     res.status(401).send({
-      message: "Please make sure to provide an address",
+      message: error.message,
       status: "error"
     });
   }
@@ -150,17 +176,20 @@ app.post("/transaction", auth, (req, res) => {
       .catch(error =>
         res.status(500).send({
           message: error.message,
-          status: "error2"
+          status: "error"
         })
       );
   } catch (error) {
-    res.status(401).send({ status: "error1", message: error.message });
+    res.status(401).send({ status: "error", message: error.message });
   }
 });
 
 app.post("/broadcast-transaction", (req, res) => {
   try {
-    const { transaction } = req.body;
+    const { transaction, block } = req.body;
+    if (block) {
+      teraCoin.addBlockToChain(block);
+    }
     teraCoin.addTransaction(new Transaction(transaction));
     res.status(200).json({ message: "successful" });
   } catch (error) {

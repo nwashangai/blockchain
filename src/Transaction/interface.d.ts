@@ -18,3 +18,11 @@ export interface construct {
   payload?: object;
   signature?: string;
 }
+
+export interface TransactionBuilder {
+  sender: string;
+  recipient: string;
+  payload: {};
+  signature: string;
+  amount: number;
+}

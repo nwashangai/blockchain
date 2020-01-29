@@ -2,6 +2,7 @@ import Block from "../Block";
 import Transaction from "../Transaction";
 
 // interface
+import { BlockBuilder } from "../Block/interface";
 import { BlockChainInterface } from "./interface";
 
 class BlockChain implements BlockChainInterface {
@@ -20,11 +21,11 @@ class BlockChain implements BlockChainInterface {
     this.activeNodeList = activeNodeList;
   }
 
-  public getLatestBlock() {
+  public getLatestBlock = () => {
     return this.chain[this.chain.length - 1];
-  }
+  };
 
-  public verifyTransaction(transaction) {
+  public verifyTransaction = transaction => {
     if (!transaction.getSender || !transaction.getRecipient) {
       return false;
     }
@@ -32,24 +33,24 @@ class BlockChain implements BlockChainInterface {
       return false;
     }
     return true;
-  }
+  };
 
-  public addTransaction(transaction) {
+  public addTransaction = transaction => {
     if (this.verifyTransaction(transaction)) {
       this.pendingTransactions.push(transaction);
     } else {
       throw new Error("Blocks must be valid with from and to addresses");
     }
-  }
+  };
 
-  public getChain() {
+  public getChain = () => {
     return {
       chain: this.chain,
       currentUrl: this.nodeUrl,
       networkNodes: Array.from(new Set([this.nodeUrl, ...this.activeNodeList])),
       pendingTransactions: this.pendingTransactions
     };
-  }
+  };
 
   public getActiveNodeList() {
     return [...this.activeNodeList];
@@ -59,22 +60,22 @@ class BlockChain implements BlockChainInterface {
     return this.nodeUrl;
   }
 
-  public setActiveNodeList(activeNodeList) {
+  public setActiveNodeList = activeNodeList => {
     activeNodeList.forEach(url => {
       if (this.activeNodeList.indexOf(url) === -1) {
         this.activeNodeList.push(url);
       }
     });
-  }
+  };
 
-  public registerNode(nodeUrl) {
+  public registerNode = nodeUrl => {
     if (this.activeNodeList.indexOf(nodeUrl) !== -1) {
       throw new Error("the url already exist in the node list");
     }
     this.activeNodeList.push(nodeUrl);
-  }
+  };
 
-  public getBalance(address) {
+  public getBalance = address => {
     let balance = 0;
     for (const block of this.chain) {
       for (const transaction of block.transactions) {
@@ -87,9 +88,9 @@ class BlockChain implements BlockChainInterface {
       }
     }
     return balance;
-  }
+  };
 
-  public getTransactions(address) {
+  public getTransactions = address => {
     const transactions = [];
     for (const block of this.chain) {
       for (const transaction of block.transactions) {
@@ -102,29 +103,44 @@ class BlockChain implements BlockChainInterface {
       }
     }
     return transactions;
-  }
+  };
 
-  public minePendingTransactions(minerRewardAddress) {
+  public addBlockToChain = (block: BlockBuilder) => {
+    const myBlock = Block.builder(block);
+    if (myBlock.isBlockValid(this.chain)) {
+      this.chain.push(myBlock);
+      this.pendingTransactions = [];
+    } else {
+      throw new Error("Block is invalid");
+    }
+  };
+
+  public minePendingTransactions = minerRewardAddress => {
     const newBlock = new Block(
       new Date().toUTCString(),
       this.pendingTransactions,
       this.getLatestBlock().hash
     );
-    newBlock.mineBlock(this.difficulty);
-    this.chain.push(newBlock);
-    this.pendingTransactions = [
-      new Transaction({
-        amount: this.miningReward,
-        recipient: minerRewardAddress
-      })
-    ];
-  }
+    if (newBlock.isBlockValid(this.chain)) {
+      newBlock.mineBlock(this.difficulty);
+      this.chain.push(newBlock);
+      this.pendingTransactions = [
+        new Transaction({
+          amount: this.miningReward,
+          recipient: minerRewardAddress
+        })
+      ];
+      return { newBlock, transaction: this.pendingTransactions[0] };
+    } else {
+      throw new Error("Block is invalid");
+    }
+  };
 
-  public isBlockChainVailid(chain) {
+  public isBlockChainVailid = chain => {
     for (let index = 1; index < chain.length; index++) {
       const currentBlock = chain[index];
       const previousBlock = chain[index - 1];
-      if (!currentBlock.hasValidTransactions()) {
+      if (!currentBlock.isBlockValid()) {
         return false;
       }
       if (currentBlock.calculateHash() !== currentBlock.hash) {
@@ -135,9 +151,9 @@ class BlockChain implements BlockChainInterface {
       }
     }
     return true;
-  }
+  };
 
-  public replaceBlockWithLatest(chain, pendingTransactions) {
+  public replaceBlockWithLatest = (chain, pendingTransactions) => {
     if (
       this.isBlockChainVailid(chain) &&
       this.verifyBulkTransations(pendingTransactions)
@@ -146,9 +162,9 @@ class BlockChain implements BlockChainInterface {
     } else {
       throw Error("Blockchain is invalid");
     }
-  }
+  };
 
-  private verifyBulkTransations(transactions) {
+  private verifyBulkTransations = transactions => {
     let isValid = true;
     transactions.forEach(transaction => {
       if (!this.verifyTransaction(new Transaction(transaction))) {
@@ -156,11 +172,11 @@ class BlockChain implements BlockChainInterface {
       }
     });
     return isValid;
-  }
+  };
 
-  private createGenisisBlock() {
+  private createGenisisBlock = () => {
     return new Block(new Date().toUTCString(), [new Transaction({})], "");
-  }
+  };
 }
 
 export default BlockChain;

@@ -3,5 +3,13 @@ import { TransactionInterface } from "../Transaction/interface";
 
 export interface BlockInterface {
   mineBlock: (difficulty: string) => void;
-  hasValidTransactions: () => boolean;
+  isBlockValid: (chain: BlockInterface[]) => boolean;
+}
+
+export interface BlockBuilder {
+  timestamp: string;
+  proofOfWork: number;
+  previousHash: string;
+  hash: string;
+  transactions: TransactionInterface[];
 }
