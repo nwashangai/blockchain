@@ -1,10 +1,12 @@
 {
-  "defaultSeverity": "error",
-  "extends": ["tslint:recommended"],
-  "jsRules": {},
-  "rules": {
-    "no-console": false,
-    "trailing-comma": false
-  },
-  "rulesDirectory": []
+	"defaultSeverity": "error",
+	"extends": ["tslint:recommended"],
+	"jsRules": {},
+	"rules": {
+		"no-console": false,
+		"trailing-comma": false,
+		"arrow-parens": [true, "ban-single-arg-parens"],
+		"semicolon": [true, "always", "strict-bound-class-methods"]
+	},
+	"rulesDirectory": []
 }

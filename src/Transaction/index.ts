@@ -3,9 +3,18 @@ import Elliptic from "elliptic";
 const ec = new Elliptic.ec("secp256k1");
 
 // interface
-import { construct, TransactionInterface } from "./interface";
+import {
+  construct,
+  TransactionBuilder,
+  TransactionInterface
+} from "./interface";
 
 class Transaction implements TransactionInterface {
+  public static builder(transaction: TransactionBuilder) {
+    const { sender, recipient, amount, signature, payload } = transaction;
+    return new Transaction({ sender, recipient, amount, signature, payload });
+  }
+
   private sender = null;
   private recipient = null;
   private payload = {};
@@ -26,13 +35,13 @@ class Transaction implements TransactionInterface {
       (this.signature = signature);
   }
 
-  public calculateHash() {
+  public calculateHash = () => {
     return SHA256(
       this.sender + this.recipient + this.amount + this.payload
     ).toString();
-  }
+  };
 
-  public signTransaction(signingKey) {
+  public signTransaction = signingKey => {
     if (signingKey.getPublic("hex") !== this.sender) {
       throw new Error("You cannot sign transction that doesn't belong to you");
     }
@@ -40,17 +49,17 @@ class Transaction implements TransactionInterface {
     const hashTX = this.calculateHash();
     const sign = signingKey.sign(hashTX, "base64");
     this.signature = sign.toDER("hex");
-  }
+  };
 
-  public getSender() {
+  public getSender = () => {
     return this.sender;
-  }
+  };
 
-  public getRecipient() {
+  public getRecipient = () => {
     return this.recipient;
-  }
+  };
 
-  public isValid() {
+  public isValid = () => {
     if (!this.sender) {
       return true;
     }
@@ -61,7 +70,7 @@ class Transaction implements TransactionInterface {
 
     const publicKey = ec.keyFromPublic(this.sender, "hex");
     return publicKey.verify(this.calculateHash(), this.signature);
-  }
+  };
 }
 
 export default Transaction;
